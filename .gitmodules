@@ -1,0 +1,15 @@
+[submodule "cmake/modules"]
+	path = cmake/modules
+	url = https://github.com/magiruuvelvet/shared-cmake-modules.git
+[submodule "libs/IXWebSocket"]
+	path = libs/IXWebSocket
+	url = https://github.com/machinezone/IXWebSocket
+[submodule "libs/fmt"]
+	path = libs/fmt
+	url = https://github.com/fmtlib/fmt.git
+[submodule "libs/magic_enum"]
+	path = libs/magic_enum
+	url = https://github.com/Neargye/magic_enum.git
+[submodule "libs/bandit"]
+	path = libs/bandit
+	url = https://github.com/banditcpp/bandit.git
