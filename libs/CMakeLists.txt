@@ -16,3 +16,7 @@ endif()
 # magic_enum
 add_library(magic_enum INTERFACE)
 target_include_directories(magic_enum INTERFACE "${PROJECT_SOURCE_DIR}/libs/magic_enum/include")
+
+# nlohmann json
+add_library(json INTERFACE)
+target_include_directories(json INTERFACE "${PROJECT_SOURCE_DIR}/libs/json/include")

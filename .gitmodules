@@ -13,3 +13,6 @@
 [submodule "libs/bandit"]
 	path = libs/bandit
 	url = https://github.com/banditcpp/bandit.git
+[submodule "libs/json"]
+	path = libs/json
+	url = https://github.com/nlohmann/json
