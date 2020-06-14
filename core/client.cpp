@@ -187,11 +187,7 @@ void Client::stop()
     this->_running = false;
     this->_terminate = true;
 
-    // terminate heartbeat thread
-    if (this->_heartbeat_thr.joinable())
-    {
-        this->_heartbeat_thr.join();
-    }
+    this->stop_threads();
 }
 
 void Client::connect()
@@ -212,6 +208,7 @@ void Client::heartbeat()
         if (!this->_heartbeat_ack_received)
         {
             this->_ws->stop();
+            this->stop_threads();
             this->connect();
         }
 
@@ -223,6 +220,17 @@ void Client::heartbeat()
         {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
+    }
+}
+
+void Client::stop_threads()
+{
+    this->_terminate = true;
+
+    // terminate heartbeat thread
+    if (this->_heartbeat_thr.joinable())
+    {
+        this->_heartbeat_thr.join();
     }
 }
 
@@ -259,6 +267,8 @@ void Client::on_websocket_event(const ix::WebSocketMessagePtr &msg)
             {
                 log("Abnormal closure, attempting reconnect...");
                 this->_ret = 1;
+                this->_ws->stop();
+                this->stop_threads();
                 this->connect();
             }
             else
@@ -362,6 +372,7 @@ void Client::on_websocket_message(const ix::WebSocketMessagePtr &msg)
         {
             log("reconnecting with a new session...");
             this->_ws->stop();
+            this->stop_threads();
             this->connect();
         }
     }
@@ -414,7 +425,7 @@ void Client::send_identity()
     id["properties"]["$os"] = Utils::get_os_name();
     id["properties"]["$browser"] = "misaka-oneesama";
     id["properties"]["$device"] = "misaka-oneesama";
-    id["intents"] = static_cast<std::uint32_t>(Intent::DEFAULTS);
+    id["intents"] = static_cast<std::uint32_t>(this->_intents);
 
     this->send_message(GatewayOpcode::IDENTIFY, id.dump(), false);
 }
@@ -426,7 +437,7 @@ void Client::send_resume()
     resume["session_id"] = this->_session_id;
     resume["seq"] = this->_last_seq;
 
-    this->send_message(GatewayOpcode::RESUME, resume.dump());
+    this->send_message(GatewayOpcode::RESUME, resume.dump(), false);
 }
 
 DISCORD_NS_END

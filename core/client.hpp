@@ -172,8 +172,15 @@ public:
         // everything
         ALL = ALL_GUILDS | ALL_DIRECT_MESSAGES,
 
+        // basic intents for basic command bots
+        // some intents require a setting to be enabled in the Discord developer console
         DEFAULTS = GUILDS | GUILD_MESSAGES | DIRECT_MESSAGES | GUILD_MEMBERS,
     };
+
+    constexpr inline void setIntents(Intent intents)
+    {
+        this->_intents = intents;
+    }
 
     /**
      * Starts the Discord event loop.
@@ -202,10 +209,12 @@ private:
     bool _heartbeat_ack_received = false;
     std::thread _heartbeat_thr;
 
+    Intent _intents = Intent::DEFAULTS;
     std::string _session_id;
 
     void connect();
     void heartbeat();
+    void stop_threads();
 
     void on_websocket_event(const ix::WebSocketMessagePtr &msg);
     void on_websocket_message(const ix::WebSocketMessagePtr &msg);
