@@ -84,6 +84,9 @@ add_subdirectory(libs)
 # core library
 add_subdirectory(core)
 
+# bot
+add_subdirectory(bot)
+
 # unit tests
 set(ENABLE_TESTING OFF CACHE BOOL "Build the unit tests.")
 if (ENABLE_TESTING)
