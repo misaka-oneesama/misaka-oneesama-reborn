@@ -5,14 +5,22 @@
 
 #include <string>
 #include <memory>
+#include <thread>
+#include <limits>
 
+// IXWebSocket forward declarations
 namespace ix
 {
     class WebSocket;
     class HttpClient;
+    struct WebSocketMessage;
+    using WebSocketMessagePtr = std::unique_ptr<WebSocketMessage>;
 }
 
 DISCORD_NS_BEGIN
+
+struct Gateway;
+struct Payload;
 
 class Client
 {
@@ -24,7 +32,7 @@ public:
      * Gateway Opcodes
      * https://discord.com/developers/docs/topics/opcodes-and-status-codes
      */
-    enum class GatewayOpcode
+    enum class GatewayOpcode : std::uint32_t
     {
         // Name                 Code        Client Action       Description
         DISPATCH                = 0,        // Receive          An event was dispatched.
@@ -38,6 +46,9 @@ public:
         INVALID_SESSION         = 9,        // Receive          The session has been invalidated. You should reconnect and identify/resume accordingly.
         HELLO                   = 10,       // Receive          Sent immediately after connecting, contains the heartbeat_interval to use.
         HEARTBEAT_ACK           = 11,       // Receive          Sent in response to receiving a heartbeat to acknowledge that it has been received.
+
+        // gateway opcode could not be determined
+        INVALID                 = 0xFFFF,
     };
 
     /**
@@ -62,12 +73,155 @@ public:
         DISALLOWED_INTENT       = 4014, // You sent a disallowed intent for a Gateway Intent. You may have tried to specify an intent that you have not enabled or are not whitelisted for.
     };
 
+    /**
+     * Gateway Intents
+     * https://discord.com/developers/docs/topics/gateway#gateway-intents
+     */
+    enum class Intent : std::uint32_t
+    {
+        GUILDS = (1 << 0),
+        //  - GUILD_CREATE
+        //  - GUILD_UPDATE
+        //  - GUILD_DELETE
+        //  - GUILD_ROLE_CREATE
+        //  - GUILD_ROLE_UPDATE
+        //  - GUILD_ROLE_DELETE
+        //  - CHANNEL_CREATE
+        //  - CHANNEL_UPDATE
+        //  - CHANNEL_DELETE
+        //  - CHANNEL_PINS_UPDATE
+
+        GUILD_MEMBERS = (1 << 1),
+        //  - GUILD_MEMBER_ADD
+        //  - GUILD_MEMBER_UPDATE
+        //  - GUILD_MEMBER_REMOVE
+
+        GUILD_BANS = (1 << 2),
+        //  - GUILD_BAN_ADD
+        //  - GUILD_BAN_REMOVE
+
+        GUILD_EMOJIS = (1 << 3),
+        //  - GUILD_EMOJIS_UPDATE
+
+        GUILD_INTEGRATIONS = (1 << 4),
+        //  - GUILD_INTEGRATIONS_UPDATE
+
+        GUILD_WEBHOOKS = (1 << 5),
+        //  - WEBHOOKS_UPDATE
+
+        GUILD_INVITES = (1 << 6),
+        //  - INVITE_CREATE
+        //  - INVITE_DELETE
+
+        GUILD_VOICE_STATES = (1 << 7),
+        //  - VOICE_STATE_UPDATE
+
+        GUILD_PRESENCES = (1 << 8),
+        //  - PRESENCE_UPDATE
+
+        GUILD_MESSAGES = (1 << 9),
+        //  - MESSAGE_CREATE
+        //  - MESSAGE_UPDATE
+        //  - MESSAGE_DELETE
+        //  - MESSAGE_DELETE_BULK
+
+        GUILD_MESSAGE_REACTIONS = (1 << 10),
+        //  - MESSAGE_REACTION_ADD
+        //  - MESSAGE_REACTION_REMOVE
+        //  - MESSAGE_REACTION_REMOVE_ALL
+        //  - MESSAGE_REACTION_REMOVE_EMOJI
+
+        GUILD_MESSAGE_TYPING = (1 << 11),
+        //  - TYPING_START
+
+        DIRECT_MESSAGES = (1 << 12),
+        //  - CHANNEL_CREATE
+        //  - MESSAGE_CREATE
+        //  - MESSAGE_UPDATE
+        //  - MESSAGE_DELETE
+        //  - CHANNEL_PINS_UPDATE
+
+        DIRECT_MESSAGE_REACTIONS = (1 << 13),
+        //  - MESSAGE_REACTION_ADD
+        //  - MESSAGE_REACTION_REMOVE
+        //  - MESSAGE_REACTION_REMOVE_ALL
+        //  - MESSAGE_REACTION_REMOVE_EMOJI
+
+        DIRECT_MESSAGE_TYPING = (1 << 14),
+        //  - TYPING_START
+
+        // all guild intents
+        ALL_GUILDS = GUILDS |
+                     GUILD_MEMBERS |
+                     GUILD_BANS |
+                     GUILD_EMOJIS |
+                     GUILD_INTEGRATIONS |
+                     GUILD_WEBHOOKS |
+                     GUILD_INVITES |
+                     GUILD_VOICE_STATES |
+                     GUILD_PRESENCES |
+                     GUILD_MESSAGES |
+                     GUILD_MESSAGE_REACTIONS |
+                     GUILD_MESSAGE_TYPING,
+
+        // all direct message intents
+        ALL_DIRECT_MESSAGES = DIRECT_MESSAGES |
+                              DIRECT_MESSAGE_REACTIONS |
+                              DIRECT_MESSAGE_TYPING,
+
+        // everything
+        ALL = ALL_GUILDS | ALL_DIRECT_MESSAGES,
+
+        DEFAULTS = GUILDS | GUILD_MESSAGES | DIRECT_MESSAGES | GUILD_MEMBERS,
+    };
+
+    /**
+     * Starts the Discord event loop.
+     * This function is blocking and only returns on errors or on user shutdown.
+     */
+    int exec();
+
+    /**
+     * Stops the bot.
+     */
+    void stop();
+
 private:
+    int _ret = 0;
+
+    bool _running = false;
+    bool _terminate = false;
+
     std::string _token;
     std::shared_ptr<ix::WebSocket> _ws;
     std::shared_ptr<ix::HttpClient> _http;
+    std::shared_ptr<Gateway> _gateway;
+
+    std::uint32_t _heartbeat_interval = 0;
+    std::int32_t _last_seq = -1;
+    bool _heartbeat_ack_received = false;
+    std::thread _heartbeat_thr;
+
+    std::string _session_id;
+
+    void connect();
+    void heartbeat();
+
+    void on_websocket_event(const ix::WebSocketMessagePtr &msg);
+    void on_websocket_message(const ix::WebSocketMessagePtr &msg);
+
+    const Payload parse_payload(const std::string &payload);
+
+    void send_message(GatewayOpcode op, const std::string &message, bool log = true);
+    void send_identity();
+    void send_resume();
 };
 
 DISCORD_NS_END
+
+constexpr inline Discord::Client::Intent operator | (Discord::Client::Intent lhs, Discord::Client::Intent rhs)
+{
+    return static_cast<Discord::Client::Intent>(static_cast<std::uint32_t>(lhs) | static_cast<std::uint32_t>(rhs));
+}
 
 #endif // DISCORD_CLIENT_HPP
