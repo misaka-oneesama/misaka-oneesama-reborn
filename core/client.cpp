@@ -221,11 +221,17 @@ void Client::heartbeat()
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
     }
+
+    this->_heartbeat_cv.notify_all();
 }
 
 void Client::stop_threads()
 {
     this->_terminate = true;
+
+    // wait for all threads to exit
+    std::unique_lock lk{this->_heartbeat_cv_mutex};
+    this->_heartbeat_cv.wait(lk, [&]{ return this->_terminate; });
 
     // terminate heartbeat thread
     if (this->_heartbeat_thr.joinable())
@@ -256,8 +262,7 @@ void Client::on_websocket_event(const ix::WebSocketMessagePtr &msg)
 
             // TODO: handle all the gateway errors
 
-            if (msg->closeInfo.code == static_cast<std::uint16_t>(GatewayCloseEventCode::DISALLOWED_INTENT) ||
-                msg->closeInfo.code == ix::WebSocketCloseConstants::kInternalErrorCode)
+            if (msg->closeInfo.code == static_cast<std::uint16_t>(GatewayCloseEventCode::DISALLOWED_INTENT))
             {
                 log("Disallowed intents, shutting down bot...");
                 this->_ret = 1;

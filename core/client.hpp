@@ -6,7 +6,10 @@
 #include <string>
 #include <memory>
 #include <thread>
+#include <mutex>
+#include <condition_variable>
 #include <limits>
+#include <cstdint>
 
 // IXWebSocket forward declarations
 namespace ix
@@ -208,6 +211,8 @@ private:
     std::int32_t _last_seq = -1;
     bool _heartbeat_ack_received = false;
     std::thread _heartbeat_thr;
+    std::condition_variable _heartbeat_cv;
+    std::mutex _heartbeat_cv_mutex;
 
     Intent _intents = Intent::DEFAULTS;
     std::string _session_id;
