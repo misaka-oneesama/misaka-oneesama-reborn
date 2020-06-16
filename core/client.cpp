@@ -63,6 +63,7 @@ static const std::string URL("https://discordapp.com/api");
 // Discord API Endpoints
 static const std::string URL_BOT_GATEWAY(URL + "/gateway/bot");
 static const std::string URL_WSS_SUFFIX("/?v=6&encoding=json");
+static const std::string URL_CHANNELS(URL + "/channels");
 
 } // anonymous namespace
 
@@ -120,7 +121,7 @@ Client::Client(const std::string &token)
     }
 
     this->_ws = std::make_shared<ix::WebSocket>();
-    this->_http = std::make_shared<ix::HttpClient>();
+    auto http = ix::HttpClient();
 
     // Note: on Windows this call is required, but since I don't support Windows
     // this function call is useless, if someone wants to tink with this library on Windows uncomment this line
@@ -130,7 +131,7 @@ Client::Client(const std::string &token)
     args->extraHeaders["Authorization"] = "Bot " + this->_token;
 
     // request the gateway endpoint for bots
-    auto res = this->_http->get(URL_BOT_GATEWAY, args);
+    const auto res = http.get(URL_BOT_GATEWAY, args);
 
     log("request({}) status={}", URL_BOT_GATEWAY, res->statusCode);
 
@@ -188,6 +189,46 @@ void Client::stop()
     this->_terminate = true;
 
     this->stop_threads();
+}
+
+void Client::sendMessage(const Channel &channel, const std::string &message, const Embed &embed, bool tts)
+{
+    if (channel && (channel.type == ChannelType::GUILD_TEXT || channel.type == ChannelType::DM))
+    {
+        auto args = ix::HttpRequestArgsPtr(new ix::HttpRequestArgs());
+        args->extraHeaders["Authorization"] = "Bot " + this->_token;
+        args->extraHeaders["Content-Type"] = "application/json";
+
+        json payload;
+        payload["content"] = message;
+        payload["tts"] = tts;
+
+        if (embed)
+        {
+            json em;
+            em["title"] = embed.title;
+            em["description"] = embed.description;
+
+            if (!embed.url.empty())
+            {
+                em["url"] = embed.url;
+            }
+            if (!embed.type.empty())
+            {
+                em["type"] = embed.type;
+            }
+
+            payload["embed"] = em;
+        }
+
+        auto http = ix::HttpClient();
+        const auto res = http.post(fmt::format("{}/{}/messages", URL_CHANNELS, channel.id), payload.dump(), args);
+
+        if (res->statusCode != 200)
+        {
+            // TODO: log error
+        }
+    }
 }
 
 void Client::connect()

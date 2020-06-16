@@ -2,6 +2,9 @@
 #define DISCORD_CLIENT_HPP
 
 #include "config.hpp"
+#include "channel.hpp"
+#include "user.hpp"
+#include "message.hpp"
 
 #include <string>
 #include <memory>
@@ -15,7 +18,6 @@
 namespace ix
 {
     class WebSocket;
-    class HttpClient;
     struct WebSocketMessage;
     using WebSocketMessagePtr = std::unique_ptr<WebSocketMessage>;
 }
@@ -180,6 +182,9 @@ public:
         DEFAULTS = GUILDS | GUILD_MESSAGES | DIRECT_MESSAGES | GUILD_MEMBERS,
     };
 
+    /**
+     * Sets the required intents for the bot.
+     */
     constexpr inline void setIntents(Intent intents)
     {
         this->_intents = intents;
@@ -196,6 +201,11 @@ public:
      */
     void stop();
 
+    /**
+     * Sends a text message to the given channel.
+     */
+    void sendMessage(const Channel &channel, const std::string &message, const Embed &embed = {}, bool tts = false);
+
 private:
     int _ret = 0;
 
@@ -204,7 +214,6 @@ private:
 
     std::string _token;
     std::shared_ptr<ix::WebSocket> _ws;
-    std::shared_ptr<ix::HttpClient> _http;
     std::shared_ptr<Gateway> _gateway;
 
     std::uint32_t _heartbeat_interval = 0;
@@ -233,9 +242,14 @@ private:
 
 DISCORD_NS_END
 
-constexpr inline Discord::Client::Intent operator | (Discord::Client::Intent lhs, Discord::Client::Intent rhs)
+constexpr inline Discord::Client::Intent operator| (Discord::Client::Intent lhs, Discord::Client::Intent rhs)
 {
     return static_cast<Discord::Client::Intent>(static_cast<std::uint32_t>(lhs) | static_cast<std::uint32_t>(rhs));
+}
+
+constexpr inline Discord::Client::Intent operator& (Discord::Client::Intent lhs, Discord::Client::Intent rhs)
+{
+    return static_cast<Discord::Client::Intent>(static_cast<std::uint32_t>(lhs) & static_cast<std::uint32_t>(rhs));
 }
 
 #endif // DISCORD_CLIENT_HPP
